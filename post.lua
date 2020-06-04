@@ -10,29 +10,21 @@ local LastBoundary = "--" .. Boundary .. "--"
 local CRLF = "\r\n"
 
 local parser = argparse("script", "An example.")
-parser:option("-f --file", "Image file.", "cmt.jpg")
+parser:option("-f --file", "Image file.", "cmt.jpg"):count("*")
+local data = {}
+
+function randomchoice(t) --Selects a random item from a table
+    local keys = {}
+    for key, value in pairs(t) do
+        keys[#keys+1] = key --Store keys in another table
+    end
+    index = keys[math.random(1, #keys)]
+    return t[index]
+end
 
 -- run script here
 function init(args)     
-
-    local data = parser:parse(args)    
-    local filename = data['file']
-    
-
-    -- print(filename)
-
-    wrk.method = "POST"
-    wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
-    wrk.body = ""
-    wrk.body = wrk.body .. get_form_data("file", filename, true) 
-    wrk.body = wrk.body .. get_form_data("request_id", "12121212", false) 
-    wrk.body = wrk.body .. get_form_data("card_type", "identify", false) 
-    wrk.body = wrk.body .. get_form_data("customer_id", "12121212", false) 
-    wrk.body = wrk.body .. get_form_data("app_id", "asdasdasdasd", false)     
-
-    -- last boundary -- 
-    wrk.body = wrk.body .. LastBoundary
-    
+    data = parser:parse(args)          
 end 
 
 
@@ -104,6 +96,30 @@ function stats(obj)
 end
 
 local counter = 1
+
+request = function()
+    local filenames = data['file']    
+    local index = (counter - 1) % (table.getn(filenames)) + 1    
+    local filename = filenames[index]
+    -- print(index,filename)    
+
+    wrk.method = "POST"
+    wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
+    wrk.body = ""
+    wrk.body = wrk.body .. get_form_data("file", filename, true) 
+    wrk.body = wrk.body .. get_form_data("request_id", "12121212", false) 
+    wrk.body = wrk.body .. get_form_data("card_type", "identify", false) 
+    wrk.body = wrk.body .. get_form_data("customer_id", "12121212", false) 
+    wrk.body = wrk.body .. get_form_data("app_id", "asdasdasdasd", false)     
+
+    -- last boundary -- 
+    wrk.body = wrk.body .. LastBoundary
+
+    -- return wrk.request()
+    return wrk.format("POST", "http://10.226.40.31:8000/api/detect")
+end
+
+
 response = function(status, headers, body)
     print(counter, body)
     counter = counter + 1
