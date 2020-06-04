@@ -25,10 +25,13 @@ function init(args)
     wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
     wrk.body = ""
     wrk.body = wrk.body .. get_form_data("file", filename, true) 
-    wrk.body = wrk.body .. get_form_data("request_id", "12121212") 
-    wrk.body = wrk.body .. get_form_data("card_type", "identify") 
-    wrk.body = wrk.body .. get_form_data("customer_id", "12121212") 
-    wrk.body = wrk.body .. get_form_data("app_id", "asdasdasdasd")     
+    wrk.body = wrk.body .. get_form_data("request_id", "12121212", false) 
+    wrk.body = wrk.body .. get_form_data("card_type", "identify", false) 
+    wrk.body = wrk.body .. get_form_data("customer_id", "12121212", false) 
+    wrk.body = wrk.body .. get_form_data("app_id", "asdasdasdasd", false)     
+
+    -- last boundary -- 
+    wrk.body = wrk.body .. LastBoundary
     
 end 
 
@@ -63,7 +66,7 @@ function get_form_data(field, filename, isFile)
     else 
         content = content .. CRLF .. CRLF .. filename
     end 
-    content = content .. CRLF .. LastBoundary
+    content = content .. CRLF
     return content 
 end     
 
