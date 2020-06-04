@@ -35,6 +35,7 @@ function init(args)
     
 end 
 
+
 function read_txt_file(path)
     local file, errorMessage = io.open(path, "r")    
     if not file then 
@@ -100,6 +101,12 @@ function stats(obj)
     io.write(string.format('[99,%d]', obj:percentile(99)))
     io.write(']\n')
     io.flush()
+end
+
+local counter = 1
+response = function(status, headers, body)
+    print(counter, body)
+    counter = counter + 1
 end
 
 
