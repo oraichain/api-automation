@@ -1,32 +1,33 @@
 -- HTTP POST script which simulates a file upload
 -- HTTP method, body, and adding a header
--- See https://tools.ietf.org/html/rfc1867
 
 local argparse = require "argparse"
 local puremagic = require('puremagic')
-local Boundary = "----WebKitFormBoundaryePkpFF7tjBAqx29L"
-local BodyBoundary = "--" .. Boundary
-local LastBoundary = "--" .. Boundary .. "--"
-local CRLF = "\r\n"
+
 
 local parser = argparse("script", "An example.")
 parser:option("-f --file", "Image file.", "cmt.jpg"):count("*")
-local data = {}
+parser:option("-d --data", "Form data.", "request_id=12121212&card_type=identify&customer_id=12121212&app_id=asdasdasdasd")
 
-function randomchoice(t) --Selects a random item from a table
-    local keys = {}
-    for key, value in pairs(t) do
-        keys[#keys+1] = key --Store keys in another table
-    end
-    index = keys[math.random(1, #keys)]
-    return t[index]
+local charset = {}  do -- [0-9a-zA-Z]
+    for c = 48, 57  do table.insert(charset, string.char(c)) end
+    for c = 65, 90  do table.insert(charset, string.char(c)) end
+    for c = 97, 122 do table.insert(charset, string.char(c)) end
 end
 
--- run script here
-function init(args)     
-    data = parser:parse(args)          
-end 
+function randomString(length)
+    if not length or length <= 0 then return '' end
+    math.randomseed(os.clock()^5)
+    return randomString(length - 1) .. charset[math.random(1, #charset)]
+end
 
+local Boundary = "----WebKitFormBoundary" .. randomString(16)
+local BodyBoundary = "--" .. Boundary
+local LastBoundary = "--" .. Boundary .. "--"
+local CRLF = "\r\n"
+local filenames
+local form_data_body = ""
+local counter = 1
 
 function read_txt_file(path)
     local file, errorMessage = io.open(path, "r")    
@@ -39,14 +40,6 @@ function read_txt_file(path)
     return content
 end
 
-
-
--- We don't need different file names here because the test should
--- always replace the uploaded file with the new one. This will avoid
--- the problem with directories having too much files and slowing down
--- the application, which is not what we are trying to test here.
--- This will also avoid overloading wrk with more things do to, which
--- can influence the test results.
 
 function get_form_data(field, filename, isFile)
     local content = BodyBoundary .. CRLF .. "Content-Disposition: form-data; name=\"" .. field .. "\""
@@ -63,106 +56,41 @@ function get_form_data(field, filename, isFile)
     return content 
 end     
 
---
--- THE FOLLOWING CODE IS MANUALLY INCLUDED FROM 'wrk_report.lua'
---
 
--- A script for `wrk` to write out test results in JSON format.
+-- special functions here
 
-function stats(obj)
-    -- latency.min              -- minimum value seen
-    -- latency.max              -- maximum value seen
-    -- latency.mean             -- average value seen
-    -- latency.stdev            -- standard deviation
-    -- latency:percentile(99.0) -- 99th percentile value
-    -- latency[i]               -- raw sample value
+function init(args)     
+    local data = parser:parse(args)    
+    local form_data = {} 
+    filenames = data['file']         
+    for k, v in string.gmatch(data['data'], "([%w_]+)=([^&]*)") do
+        form_data[k] = v
+    end
+    wrk.method = "POST"
+    wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
 
-    io.write(string.format('"min":%g,\n', obj.min))
-    io.write(string.format('"mean":%g,\n', obj.mean))
-    io.write(string.format('"max":%g,\n', obj.max))
-    io.write(string.format('"stdev":%g,\n', obj.stdev))
-    io.write('"percentile":[')
-    io.write(string.format('[1,%d],', obj:percentile(1)))
-    io.write(string.format('[5,%d],', obj:percentile(5)))
-    io.write(string.format('[10,%d],', obj:percentile(10)))
-    io.write(string.format('[25,%d],', obj:percentile(25)))
-    io.write(string.format('[50,%d],', obj:percentile(50)))
-    io.write(string.format('[75,%d],', obj:percentile(75)))
-    io.write(string.format('[90,%d],', obj:percentile(90)))
-    io.write(string.format('[95,%d],', obj:percentile(95)))
-    io.write(string.format('[99,%d]', obj:percentile(99)))
-    io.write(']\n')
-    io.flush()
-end
+    for field, value in pairs(form_data) do
+        form_data_body = form_data_body .. get_form_data(field, value, false) 
+    end     
+    -- last boundary -- 
+    form_data_body = form_data_body .. LastBoundary
 
-local counter = 1
+end 
 
-request = function()
-    local filenames = data['file']    
+function request()    
+    -- round robin file 
     local index = (counter - 1) % (table.getn(filenames)) + 1    
     local filename = filenames[index]
     -- print(index,filename)    
-
-    wrk.method = "POST"
-    wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
-    wrk.body = ""
-    wrk.body = wrk.body .. get_form_data("file", filename, true) 
-    wrk.body = wrk.body .. get_form_data("request_id", "12121212", false) 
-    wrk.body = wrk.body .. get_form_data("card_type", "identify", false) 
-    wrk.body = wrk.body .. get_form_data("customer_id", "12121212", false) 
-    wrk.body = wrk.body .. get_form_data("app_id", "asdasdasdasd", false)     
-
-    -- last boundary -- 
-    wrk.body = wrk.body .. LastBoundary
-
-    -- return wrk.request()
-    return wrk.format("POST", "http://10.226.40.31:8000/api/detect")
+    
+    wrk.body = get_form_data("file", filename, true) .. form_data_body    
+        
+    -- return request
+    return wrk.format()
+    
 end
 
-
-response = function(status, headers, body)
+function response(status, headers, body)
     print(counter, body)
     counter = counter + 1
 end
-
-
--- enable stats --
-local enable_stats = os.getenv('stats')
-if enable_stats then 
-    done = function(summary, latency, requests)
-        io.write("JSON: {\n")
-        io.write('"summary":{\n')
-
-        -- summary = {
-        --   duration = N,  -- run duration in microseconds
-        --   requests = N,  -- total completed requests
-        --   bytes    = N,  -- total bytes received
-        --   errors   = {
-        --     connect = N, -- total socket connection errors
-        --     read    = N, -- total socket read errors
-        --     write   = N, -- total socket write errors
-        --     status  = N, -- total HTTP status codes > 399
-        --     timeout = N  -- total request timeouts
-        --   }
-        -- }
-
-        io.write(string.format('"duration":%d,\n', summary.duration))
-        io.write(string.format('"requests":%d,\n', summary.requests))
-        io.write(string.format('"bytes":%d,\n', summary.bytes))
-        io.write('"errors":{')
-        io.write(string.format('"connect":%d,', summary.errors.connect))
-        io.write(string.format('"read":%d,', summary.errors.read))
-        io.write(string.format('"write":%d,', summary.errors.write))
-        io.write(string.format('"status":%d,', summary.errors.status))
-        io.write(string.format('"timeout":%d', summary.errors.timeout))
-        io.write('}\n')
-        io.write('},\n')
-        io.write('"latency":{\n')
-        stats(latency)
-        io.write('},\n')
-        io.write('"requests":{\n')
-        stats(requests)
-        io.write('}\n')
-        io.write("}\n")
-    end
-end 
