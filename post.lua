@@ -67,6 +67,8 @@ function init(args)
         form_data[k] = v
     end
     wrk.method = "POST"
+    wrk.headers["username"] = "ewallet" 
+    wrk.headers["password"] = "123456"
     wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
 
     for field, value in pairs(form_data) do
