@@ -8,7 +8,6 @@ local puremagic = require('puremagic')
 local parser = argparse("script", "An example.")
 parser:option("-f --file", "Image file.", {"cmt.jpg"}):count("*")
 parser:option("-d --data", "Form data.", "request_id=12121212&card_type=identify&customer_id=12121212&app_id=asdasdasdasd")
-parser:option("-H --header", "Headers", {"username:ewallet", "password:123456"}):count("*")
 
 local charset = {}  do -- [0-9a-zA-Z]
     for c = 48, 57  do table.insert(charset, string.char(c)) end
@@ -67,14 +66,6 @@ function init(args)
     for k, v in string.gmatch(data['data'], "([%w_]+)=([^&]*)") do
         form_data[k] = v
     end
-    local headers = data['header']
-    for k, v in pairs(headers) do 
-        for k1, v1 in string.gmatch(v, "([%w_]+):([^:]*)") do       
-            -- print(k1, v1)     
-            wrk.headers[k1] = v1
-            break
-        end
-    end 
 
     wrk.method = "POST"    
     wrk.headers["Content-Type"] = "multipart/form-data; boundary=" .. Boundary
