@@ -82,7 +82,7 @@ function request()
     -- round robin file 
     local index = (counter - 1) % (table.getn(filenames)) + 1    
     local filename = filenames[index]
-    print(index,filename)    
+    -- print(index,filename)    
     
     wrk.body = get_form_data("file", filename, true) .. form_data_body    
         
