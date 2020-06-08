@@ -6,7 +6,7 @@ local puremagic = require('puremagic')
 
 
 local parser = argparse("script", "An example.")
-parser:option("-f --file", "Image file.", {"cmt.jpg"}):count("*")
+parser:option("-f --file", "Image file."):count("*")
 parser:option("-d --data", "Form data.", "request_id=12121212&card_type=identify&customer_id=12121212&app_id=asdasdasdasd")
 
 local charset = {}  do -- [0-9a-zA-Z]
@@ -82,7 +82,7 @@ function request()
     -- round robin file 
     local index = (counter - 1) % (table.getn(filenames)) + 1    
     local filename = filenames[index]
-    -- print(index,filename)    
+    print(index,filename)    
     
     wrk.body = get_form_data("file", filename, true) .. form_data_body    
         
