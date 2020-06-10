@@ -82,9 +82,17 @@ function request()
     -- round robin file 
     local index = (counter - 1) % (table.getn(filenames)) + 1    
     local filename = filenames[index]
+    counter = counter + 1
     -- print(index,filename)    
+
+    -- form files
+    wrk.body = ""
+    for k, v in string.gmatch(filename, "([%w_]+)=([^&]*)") do        
+        wrk.body = wrk.body .. get_form_data(k, v, true)
+    end
     
-    wrk.body = get_form_data("file", filename, true) .. form_data_body    
+    
+    wrk.body = wrk.body .. form_data_body    
         
     -- return request
     return wrk.format()
@@ -92,6 +100,5 @@ function request()
 end
 
 function response(status, headers, body)
-    print(counter, body)
-    counter = counter + 1
+    print(counter, body)    
 end
