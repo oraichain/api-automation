@@ -101,6 +101,7 @@ function request()
     
 end
 
+-- Maximum is 50 characters
 function response(status, headers, body)
-    print(counter, body)    
+    print(counter, body:sub(0, 50), '\n')    
 end
