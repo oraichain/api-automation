@@ -87,8 +87,10 @@ function request()
 
     -- form files
     wrk.body = ""
-    for k, v in string.gmatch(filename, "([%w_]+)=([^&]*)") do        
-        wrk.body = wrk.body .. get_form_data(k, v, true)
+    if filename then 
+        for k, v in string.gmatch(filename, "([%w_]+)=([^&]*)") do        
+            wrk.body = wrk.body .. get_form_data(k, v, true)
+        end
     end
     
     
